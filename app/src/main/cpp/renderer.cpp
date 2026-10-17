@@ -1,11 +1,15 @@
 #include "renderer.h"
 #include <GLES3/gl3.h>
 #include <cmath>
+#include <vector>
 
 static GLuint program = 0;
 static GLuint vao = 0;
 static GLuint vbo = 0;
 static GLint mvpLocation = -1;
+static GLuint gridVao = 0;
+static GLuint gridVbo = 0;
+static GLsizei gridVertexCount = 0;
 
 static const char* vertexShaderSource = R"(
 #version 300 es
@@ -26,8 +30,7 @@ precision mediump float;
 in vec3 vColor;
 out vec4 fragColor;
 
-void main() {
-    fragColor = vec4(vColor, 1.0);
+void main() {    fragColor = vec4(vColor, 1.0);
 }
 )";
 
@@ -147,6 +150,40 @@ bool Renderer::init() {
                           reinterpret_cast<void*>(3 * sizeof(float)));
     glEnableVertexAttribArray(1);
     glBindVertexArray(0);
+
+    std::vector<float> gridVertices;
+    auto addVertex = [&gridVertices](float x, float y, float z) {
+        gridVertices.insert(gridVertices.end(),
+            {x, y, z, 0.12f, 0.32f, 0.48f});
+    };
+
+    for (int i = -10; i <= 10; ++i) {
+        float v = static_cast<float>(i);
+        addVertex(-10.0f, 0.0f, v);
+        addVertex( 10.0f, 0.0f, v);
+        addVertex(v, 0.0f, -10.0f);
+        addVertex(v, 0.0f,  10.0f);
+    }
+
+    gridVertexCount = static_cast<GLsizei>(gridVertices.size() / 6);
+
+    glGenVertexArrays(1, &gridVao);
+    glBindVertexArray(gridVao);
+    glGenBuffers(1, &gridVbo);
+    glBindBuffer(GL_ARRAY_BUFFER, gridVbo);
+    glBufferData(GL_ARRAY_BUFFER,
+        gridVertices.size() * sizeof(float),
+        gridVertices.data(), GL_STATIC_DRAW);
+
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE,
+        6 * sizeof(float), nullptr);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE,
+        6 * sizeof(float),
+        reinterpret_cast<void*>(3 * sizeof(float)));
+    glEnableVertexAttribArray(1);
+    glBindVertexArray(0);
+
     glEnable(GL_DEPTH_TEST);
     return true;
 }
@@ -160,10 +197,24 @@ void Renderer::resize(int width, int height) {
     }
 }
 
+void Renderer::drawGrid(const float* mvp) {
+    if (!gridVao || gridVertexCount <= 0) return;
+
+    glUniformMatrix4fv(mvpLocation, 1, GL_FALSE, mvp);
+    glBindVertexArray(gridVao);
+    glDrawArrays(GL_LINES, 0, gridVertexCount);
+    glBindVertexArray(0);
+}
+
 void Renderer::draw(float rotationXAngle, float rotationYAngle) {
     if (!program) return;
 
-    float projection[16], rx[16], ry[16], rotation[16], model[16], mvp[16];
+    float projection[16], rx[16], ry[16], rotation[16],
+         model[16], mvp[16], gridMvp[16],
+         gridRotation[16], gridModel[16];
+    const float gridTranslation[16] = {
+        1,0,0,0, 0,1,0,0, 0,0,1,0, 0,-1.35f,-5,1
+    };
     const float translation[16] = {
         1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,-5,1
     };
@@ -177,8 +228,12 @@ void Renderer::draw(float rotationXAngle, float rotationYAngle) {
     multiply(rotation, ry, rx);
     multiply(model, translation, rotation);
     multiply(mvp, projection, model);
+    rotationX(gridRotation, 0.75f);
+    multiply(gridModel, gridTranslation, gridRotation);
+    multiply(gridMvp, projection, gridModel);
 
     glUseProgram(program);
+    drawGrid(gridMvp);
     glUniformMatrix4fv(mvpLocation, 1, GL_FALSE, mvp);
     glBindVertexArray(vao);
     glDrawArrays(GL_TRIANGLES, 0, 36);
@@ -186,6 +241,11 @@ void Renderer::draw(float rotationXAngle, float rotationYAngle) {
 }
 
 void Renderer::shutdown() {
+    if (gridVbo) glDeleteBuffers(1, &gridVbo);
+    if (gridVao) glDeleteVertexArrays(1, &gridVao);
+    gridVbo = 0;
+    gridVao = 0;
+    gridVertexCount = 0;
     if (vbo) glDeleteBuffers(1, &vbo);
     if (vao) glDeleteVertexArrays(1, &vao);
     if (program) glDeleteProgram(program);

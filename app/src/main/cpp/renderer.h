@@ -6,6 +6,7 @@ public:
     bool init();
     void resize(int width, int height);
     void draw(float rotationX, float rotationY);
+    void drawGrid(const float* mvp);
     void shutdown();
 };
 
