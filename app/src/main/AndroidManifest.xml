@@ -6,7 +6,7 @@
         android:required="true" />
 
     <application
-        android:label="BLENDORA 3D"
+        android:label="TRIVEX"
         android:hasCode="false"
         android:theme="@android:style/Theme.Material.NoActionBar"
         android:allowBackup="false">
