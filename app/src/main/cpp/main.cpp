@@ -24,6 +24,12 @@ static float rotationYAngle = 0.65f;
 static float lastX = 0.0f;
 static float lastY = 0.0f;
 static bool dragging = false;
+static float moveX = 0.0f;
+static float moveY = 0.0f;
+static float objectScale = 1.0f;
+static float lastPinchDistance = 0.0f;
+static float lastCenterX = 0.0f;
+static float lastCenterY = 0.0f;
 static int width = 1;
 static int height = 1;
 
@@ -119,10 +125,14 @@ static void handleCommand(android_app* app, int32_t command) {
     }
 }
 
+
 static int32_t handleInput(android_app*, AInputEvent* event) {
     if (AInputEvent_getType(event) != AINPUT_EVENT_TYPE_MOTION) return 0;
 
     int action = AMotionEvent_getAction(event) & AMOTION_EVENT_ACTION_MASK;
+    size_t count = AMotionEvent_getPointerCount(event);
+    if (count == 0) return 0;
+
     float x = AMotionEvent_getX(event, 0);
     float y = AMotionEvent_getY(event, 0);
 
@@ -130,6 +140,45 @@ static int32_t handleInput(android_app*, AInputEvent* event) {
         lastX = x;
         lastY = y;
         dragging = true;
+        lastPinchDistance = 0.0f;
+        return 1;
+    }
+
+    if (action == AMOTION_EVENT_ACTION_POINTER_DOWN && count >= 2) {
+        float x1 = AMotionEvent_getX(event, 1);
+        float y1 = AMotionEvent_getY(event, 1);
+        float dx = x1 - x;
+        float dy = y1 - y;
+        lastPinchDistance = std::sqrt(dx * dx + dy * dy);
+        lastCenterX = (x + x1) * 0.5f;
+        lastCenterY = (y + y1) * 0.5f;
+        dragging = false;
+        return 1;
+    }
+
+    if (action == AMOTION_EVENT_ACTION_MOVE && count >= 2) {
+        float x1 = AMotionEvent_getX(event, 1);
+        float y1 = AMotionEvent_getY(event, 1);
+        float dx = x1 - x;
+        float dy = y1 - y;
+        float distance = std::sqrt(dx * dx + dy * dy);
+        float centerX = (x + x1) * 0.5f;
+        float centerY = (y + y1) * 0.5f;
+
+        if (lastPinchDistance > 1.0f && distance > 1.0f) {
+            objectScale *= distance / lastPinchDistance;
+            if (objectScale < 0.25f) objectScale = 0.25f;
+            if (objectScale > 3.0f) objectScale = 3.0f;
+        }
+
+        if (height > 0) {
+            moveX += (centerX - lastCenterX) * 4.0f / height;
+            moveY -= (centerY - lastCenterY) * 4.0f / height;
+        }
+
+        lastPinchDistance = distance;
+        lastCenterX = centerX;
+        lastCenterY = centerY;
         return 1;
     }
 
@@ -141,9 +190,16 @@ static int32_t handleInput(android_app*, AInputEvent* event) {
         return 1;
     }
 
+    if (action == AMOTION_EVENT_ACTION_POINTER_UP) {
+        dragging = false;
+        lastPinchDistance = 0.0f;
+        return 1;
+    }
+
     if (action == AMOTION_EVENT_ACTION_UP ||
         action == AMOTION_EVENT_ACTION_CANCEL) {
         dragging = false;
+        lastPinchDistance = 0.0f;
         return 1;
     }
 
@@ -172,7 +228,7 @@ void android_main(android_app* app) {
 
         if (rendererReady && display != EGL_NO_DISPLAY &&
             surface != EGL_NO_SURFACE) {
-            renderer.draw(rotationXAngle, rotationYAngle);
+            renderer.draw(rotationXAngle, rotationYAngle, moveX, moveY, objectScale);
             eglSwapBuffers(display, surface);
         }
     }

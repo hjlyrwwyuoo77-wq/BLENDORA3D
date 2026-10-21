@@ -206,7 +206,7 @@ void Renderer::drawGrid(const float* mvp) {
     glBindVertexArray(0);
 }
 
-void Renderer::draw(float rotationXAngle, float rotationYAngle) {
+void Renderer::draw(float rotationXAngle, float rotationYAngle, float moveX, float moveY, float objectScale) {
     if (!program) return;
 
     float projection[16], rx[16], ry[16], rotation[16],
@@ -216,7 +216,8 @@ void Renderer::draw(float rotationXAngle, float rotationYAngle) {
         1,0,0,0, 0,1,0,0, 0,0,1,0, 0,-1.35f,-5,1
     };
     const float translation[16] = {
-        1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,-5,1
+        1,0,0,0, 0,1,0,0, 0,0,1,0,
+        moveX,moveY,-5,1
     };
 
     glClearColor(0.025f, 0.04f, 0.08f, 1.0f);
@@ -226,8 +227,18 @@ void Renderer::draw(float rotationXAngle, float rotationYAngle) {
     rotationX(rx, rotationXAngle);
     rotationY(ry, rotationYAngle);
     multiply(rotation, ry, rx);
-    multiply(model, translation, rotation);
-    multiply(mvp, projection, model);
+    float scaleMatrix[16] = {
+        objectScale,0,0,0,
+        0,objectScale,0,0,
+        0,0,objectScale,0,
+        0,0,0,1
+    };
+
+    multiply(model, rotation, scaleMatrix);
+
+    float translatedModel[16];
+    multiply(translatedModel, translation, model);
+    multiply(mvp, projection, translatedModel);
     rotationX(gridRotation, 0.75f);
     multiply(gridModel, gridTranslation, gridRotation);
     multiply(gridMvp, projection, gridModel);
