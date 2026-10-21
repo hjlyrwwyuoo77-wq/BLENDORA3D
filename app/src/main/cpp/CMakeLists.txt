@@ -19,6 +19,13 @@ target_link_libraries(native_app_glue
     log
 )
 
+add_library(trivex_core SHARED IMPORTED)
+
+set_target_properties(trivex_core PROPERTIES
+    IMPORTED_LOCATION
+    "${CMAKE_CURRENT_SOURCE_DIR}/../jniLibs/arm64-v8a/libtrivex_core.so"
+)
+
 add_library(main SHARED
     main.cpp
     renderer.cpp
@@ -29,6 +36,7 @@ target_include_directories(main PRIVATE
 )
 
 target_link_libraries(main
+    trivex_core
     native_app_glue
     android
     log

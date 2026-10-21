@@ -7,6 +7,8 @@
 #include "renderer.h"
 #include <cmath>
 
+extern "C" int trivex_add(int, int);
+
 #define LOG_TAG "BLENDORA3D"
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
 
@@ -207,6 +209,7 @@ static int32_t handleInput(android_app*, AInputEvent* event) {
 }
 
 void android_main(android_app* app) {
+    __android_log_print(ANDROID_LOG_INFO, LOG_TAG, "Rust integration test: 2 + 3 = %d", trivex_add(2, 3));
     app_dummy();
     app->onAppCmd = handleCommand;
     app->onInputEvent = handleInput;

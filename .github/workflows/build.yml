@@ -1,4 +1,4 @@
-name: BLENDORA3D Android Build
+name: TRIVEX Android Build
 
 on:
   push:
@@ -34,6 +34,31 @@ jobs:
             "cmake;3.22.1"
           yes | sdkmanager --licenses
 
+          SDK_ROOT="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
+          NDK_HOME="$SDK_ROOT/ndk/26.1.10909125"
+
+          echo "ANDROID_NDK_HOME=$NDK_HOME" >> "$GITHUB_ENV"
+          echo "CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER=$NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android26-clang" >> "$GITHUB_ENV"
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android
+
+      - name: Build Rust core for Android
+        run: |
+          cargo build \
+            --manifest-path rust-core/Cargo.toml \
+            --release \
+            --target aarch64-linux-android
+
+          mkdir -p app/src/main/jniLibs/arm64-v8a
+
+          cp rust-core/target/aarch64-linux-android/release/libtrivex_core.so \
+            app/src/main/jniLibs/arm64-v8a/libtrivex_core.so
+
+          file app/src/main/jniLibs/arm64-v8a/libtrivex_core.so
+
       - name: Set up Gradle 8.7
         uses: gradle/actions/setup-gradle@v4
         with:
@@ -45,6 +70,6 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: BLENDORA3D-debug
+          name: TRIVEX-debug
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
