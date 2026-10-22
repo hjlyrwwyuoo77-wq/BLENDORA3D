@@ -67,6 +67,15 @@ jobs:
       - name: Build debug APK
         run: gradle assembleDebug --no-daemon --stacktrace
 
+      - name: Verify Rust library in APK
+        run: |
+          echo "=== Rust library before packaging ==="
+          ls -l app/src/main/jniLibs/arm64-v8a/
+          echo "=== Libraries packaged in APK ==="
+          unzip -l app/build/outputs/apk/debug/app-debug.apk | grep -E 'libtrivex_core.so|libmain.so'
+          echo "=== Check Rust library is packaged ==="
+          unzip -l app/build/outputs/apk/debug/app-debug.apk | grep 'lib/arm64-v8a/libtrivex_core.so'
+
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
